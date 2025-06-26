@@ -10,6 +10,7 @@ import prisma from "@packages/libs/prisma";
 import { AuthError, ValidationError } from "@packages/error-handler";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
+import { setCookie } from "../utils/cookies/setCookie";
 
 export const userRegistration = async (
   req: Request,
@@ -92,7 +93,7 @@ export const loginUser = async (
     });
 
     if (!user) {
-      return next(new AuthError("User not found!"));
+      return next(new AuthError("Incorrect email or password!"));
     }
 
     if (!user.password) {
@@ -100,11 +101,42 @@ export const loginUser = async (
     }
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return next(new AuthError("Incorrect password!"));
+      return next(new AuthError("Incorrect email or password!"));
     }
 
     //Generate access and refresh tokens
-    const accessToken = jwt;
+    const accessToken = jwt.sign(
+      { id: user.id, role: "user" },
+      process.env.ACCESS_TOKEN_SECRET as string,
+      {
+        expiresIn: "15m",
+      }
+    );
+
+    const refreshToken = jwt.sign(
+      { id: user.id, role: "user" },
+      process.env.REFRESH_TOKEN_SECRET as string,
+      {
+        expiresIn: "7d",
+      }
+    );
+
+    //store the refresh and access token in an http secure cookie
+
+    setCookie(res, "refresh_token", refreshToken);
+    setCookie(res, "access_token", accessToken);
+
+    res.status(200).json({
+      success: true,
+      message: "User logged in successfully!",
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+      },
+      accessToken,
+      refreshToken,
+    });
   } catch (error) {
     return next(error);
   }
