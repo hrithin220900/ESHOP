@@ -83,6 +83,8 @@ export const sendOtp = async (
   await sendEmail(email, "Verify your email - eShop", template, {
     name,
     otp,
+    resetToken: null,
+    resetLink: null,
   });
   await redis.set(`otp:${email}`, otp, "EX", 300); // Store OTP in Redis for 5 minutes
   await redis.set(`otp_cooldown:${email}`, "true", "EX", 60); // Set cooldown for 1 minute
