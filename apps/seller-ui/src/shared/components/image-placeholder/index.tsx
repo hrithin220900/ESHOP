@@ -8,16 +8,22 @@ const ImagePlaceHolder = ({
   onImageChange,
   onRemove,
   defaultImage = null,
-  index = null,
+  index = 0,
+  setSelectedImage,
   setOpenImageModal,
+  pictureUploadingLoader,
+  images,
 }: {
   size: string;
   small?: boolean;
+  pictureUploadingLoader?: boolean;
   onImageChange: (file: File | null, index: number) => void;
   onRemove?: (index: number) => void;
   defaultImage?: string | null;
-  index?: number | null;
+  index?: number;
+  setSelectedImage: (e: string) => void;
   setOpenImageModal: (openImageModal: boolean) => void;
+  images: any;
 }) => {
   const [imagePreview, setImagePreview] = React.useState<string | null>(
     defaultImage
@@ -47,16 +53,25 @@ const ImagePlaceHolder = ({
         <>
           <button
             type="button"
+            disabled={pictureUploadingLoader}
             onClick={() => onRemove?.(index!)}
-            className="absolute top-3 right-3 !rounded bg-red-600 shadow-lg"
+            className="absolute top-3 right-3 p-2 !rounded bg-red-600 shadow-lg"
           >
             <X size={16} />
           </button>
           <button
-            className="absolute top-3 right-[70px] p-2 !rounded bg-blue-500 shadow-lg cursor-pointer"
-            onClick={() => setOpenImageModal(true)}
+            disabled={pictureUploadingLoader}
+            className="absolute top-3 right-[55px] p-2 !rounded disabled:bg-gray-500 disabled:animate-pulse bg-blue-500 shadow-lg cursor-pointer disabled:cursor-not-allowed"
+            onClick={() => {
+              setOpenImageModal(true);
+              setSelectedImage(images[index].file_url);
+            }}
           >
-            <WandSparkles size={16} />
+            {pictureUploadingLoader ? (
+              <span>Uploading...</span>
+            ) : (
+              <WandSparkles size={16} />
+            )}
           </button>
         </>
       ) : (
