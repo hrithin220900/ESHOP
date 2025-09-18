@@ -2,7 +2,6 @@ import { NotFoundError, ValidationError } from "@packages/error-handler";
 import { imagekit } from "@packages/libs/imageKit";
 import prisma from "@packages/libs/prisma";
 import { NextFunction, Request, Response } from "express";
-import { parse } from "path";
 
 export const getCategories = async (
   req: Request,
@@ -277,5 +276,98 @@ export const getShopProducts = async (
     res.status(200).json({ success: true, products });
   } catch (error) {
     next(error);
+  }
+};
+
+export const deleteProduct = async (
+  req: any,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { productId } = req.params;
+    console.log({ productId });
+    const sellerId = req.seller?.shop?.id;
+
+    const product = await prisma.products.findUnique({
+      where: { id: productId },
+      select: { id: true, shopId: true, isDeleted: true },
+    });
+
+    if (!product) {
+      return next(new ValidationError("Product not found"));
+    }
+
+    if (product.shopId !== sellerId) {
+      return next(
+        new ValidationError("You are not authorized to delete this product")
+      );
+    }
+
+    if (product.isDeleted) {
+      return next(new ValidationError("Product is already in deleted state"));
+    }
+
+    const deletedProduct = await prisma.products.update({
+      where: { id: productId },
+      data: {
+        isDeleted: true,
+        deletedAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      },
+    });
+
+    return res.status(200).json({
+      message:
+        "Product moved to deleted state. It will be permanently deleted after 24 hours.",
+      deletedAt: deletedProduct.deletedAt,
+    });
+  } catch (error) {
+    return res.status(500).json({ message: "Error deleting product", error });
+  }
+};
+
+export const restoreProduct = async (
+  req: any,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { productId } = req.params;
+    const sellerId = req.seller?.shop?.id;
+
+    const product = await prisma.products.findUnique({
+      where: { id: productId },
+      select: { id: true, shopId: true, isDeleted: true },
+    });
+
+    if (!product) {
+      return next(new ValidationError("Product not found"));
+    }
+
+    if (product.shopId !== sellerId) {
+      return next(
+        new ValidationError("You are not authorized to delete this product")
+      );
+    }
+
+    if (!product.isDeleted) {
+      return res.status(400).json({
+        message: "Product is not in deleted state",
+      });
+    }
+
+    await prisma.products.update({
+      where: { id: productId },
+      data: {
+        isDeleted: false,
+        deletedAt: null,
+      },
+    });
+
+    return res.status(200).json({
+      message: "Product successfully restored",
+    });
+  } catch (error) {
+    return res.status(500).json({ message: "Error restoring product", error });
   }
 };
